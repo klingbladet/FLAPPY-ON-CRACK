@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Flappy All-Stars & Themes</title>
-    <!-- Google Fonts for retro feel -->
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     
     <style>
@@ -222,10 +221,9 @@
     <canvas id="gameCanvas"></canvas>
     
     <div id="score-display">0</div>
-    <div id="lives-display">❤️❤️</div>
+    <div id="lives-display">❤️❤️❤️</div>
 
     <div id="ui-layer">
-        <!-- START SCREEN -->
         <div id="start-screen">
             <h1>FLAPPY ALL-STARS</h1>
             
@@ -259,7 +257,6 @@
             <p style="margin-top:10px; font-size: 0.5rem; color: #ff6666;">*Right-click to shoot in Normal/Hard*</p>
         </div>
 
-        <!-- GAME OVER SCREEN -->
         <div id="game-over-screen" class="hidden">
             <h1>GAME OVER</h1>
             <p>Score: <span id="final-score">0</span></p>
@@ -267,8 +264,7 @@
             <div class="leaderboard-container">
                 <p>LEADERBOARD</p>
                 <table id="leaderboard-table">
-                    <!-- Populated by JS -->
-                </table>
+                    </table>
             </div>
 
             <button id="restart-btn" class="btn">TRY AGAIN</button>
@@ -279,27 +275,39 @@
 
 <script>
 
+/* --------------------------------------------------------
+   MUSIK KONFIGURATION
+   Ändra filnamnen här nedanför för att matcha dina mp3-filer.
+   Se till att filerna ligger i samma mapp som denna HTML-fil.
+   --------------------------------------------------------
+*/
+const MUSIC_FILES = {
+    soviet: 'audio/soviet-theme.mp3',      // Byt namn om din fil heter något annat
+    leaf: 'audio/naruto-theme.mp3',          // Byt namn om din fil heter något annat
+    southpark: 'audio/south-park-theme.mp3' // Byt namn om din fil heter något annat
+};
+
 /**
  * Game Configuration
  */
 const DIFFICULTIES = {
     easy: { 
-        speed: 2, // Made slightly faster
+        speed: 2.5, 
         pipeInterval: 2200, 
-        gap: 190, // Slightly tighter gap
+        gap: 150, 
         enemyChance: 0 
     },
     normal: { 
         speed: 3, 
         pipeInterval: 1700, 
         gap: 170, 
-        enemyChance: 0.003 // Small chance for enemies
+        enemyChance: 0.04 
     },
     hard: { 
         speed: 4, 
         pipeInterval: 1400, 
         gap: 150, 
-        enemyChance: 0.008 // Frequent enemies
+        enemyChance: 0.08
     }
 };
 
@@ -905,6 +913,9 @@ class Game {
         this.gameOverScreen = document.getElementById('game-over-screen');
         this.usernameInput = document.getElementById('username-input');
 
+        // AUDIO SETUP
+        this.currentMusic = null;
+
         this.setupInputs();
         this.setupUI();
         this.background.draw(this.ctx, this.currentTheme);
@@ -921,148 +932,126 @@ class Game {
     }
 
     setupUI() {
-        this.setupBtnGroup('#diff-selector .opt-btn', (val) => this.currentDifficulty = val);
-        this.setupBtnGroup('#char-selector .opt-btn', (val) => this.currentCharacter = val);
-        this.setupBtnGroup('#theme-selector .opt-btn', (val) => {
-            this.currentTheme = val;
+        // Theme Selectors
+        document.querySelectorAll('#theme-selector .opt-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('#theme-selector .opt-btn').forEach(b => b.classList.remove('selected'));
+                e.target.classList.add('selected');
+                this.currentTheme = e.target.dataset.theme;
+                // Redraw background preview
+                this.background.draw(this.ctx, this.currentTheme);
+            });
+        });
+
+        // Character Selectors
+        document.querySelectorAll('#char-selector .opt-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('#char-selector .opt-btn').forEach(b => b.classList.remove('selected'));
+                e.target.classList.add('selected');
+                this.currentCharacter = e.target.dataset.char;
+            });
+        });
+
+        // Difficulty Selectors
+        document.querySelectorAll('#diff-selector .opt-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('#diff-selector .opt-btn').forEach(b => b.classList.remove('selected'));
+                e.target.classList.add('selected');
+                this.currentDifficulty = e.target.dataset.diff;
+            });
+        });
+
+        document.getElementById('start-btn').addEventListener('click', () => {
+            if(this.usernameInput.value.trim() !== "") this.username = this.usernameInput.value.trim();
+            this.start();
+        });
+
+        document.getElementById('restart-btn').addEventListener('click', () => {
+            this.gameOverScreen.classList.add('hidden');
+            this.start();
+        });
+
+        document.getElementById('menu-btn').addEventListener('click', () => {
+            this.gameOverScreen.classList.add('hidden');
+            this.startScreen.classList.remove('hidden');
             this.background.draw(this.ctx, this.currentTheme);
         });
     }
 
-    setupBtnGroup(selector, callback) {
-        const btns = document.querySelectorAll(selector);
-        btns.forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                btns.forEach(b => b.classList.remove('selected'));
-                e.target.classList.add('selected');
-                callback(e.target.dataset.diff || e.target.dataset.char || e.target.dataset.theme);
-            });
-        });
-    }
-
     setupInputs() {
-        // Track mouse position globally
-        window.addEventListener('mousemove', (e) => {
-            this.mousePos = { x: e.clientX, y: e.clientY };
-        });
-
-        const action = (e) => {
-            if (e.type !== 'touchstart' && (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT')) return;
-            if (e.type === 'touchstart' && e.target.tagName !== 'BUTTON') e.preventDefault();
-
-            if (this.isRunning && !this.isGameOver) {
-                // Left click or tap handles jumping
-                if(e.button !== 2) this.bird.flap();
-            }
-        };
-
-        // Shared shooting logic
-        const performShoot = (clientX, clientY) => {
-            const difficulty = DIFFICULTIES[this.currentDifficulty];
-            // Allow shooting in Normal and Hard modes
-            if (this.isRunning && !this.isGameOver && difficulty.enemyChance > 0) {
-                const rect = this.canvas.getBoundingClientRect();
-                const scaleX = this.canvas.width / rect.width;
-                const scaleY = this.canvas.height / rect.height;
-                const aimX = (clientX - rect.left) * scaleX;
-                const aimY = (clientY - rect.top) * scaleY;
-                
-                // Shoot projectile from bird to mouse location
-                this.projectiles.push(new Projectile(this.bird.x + this.bird.width/2, this.bird.y + this.bird.height/2, aimX, aimY, this.currentTheme));
-            }
-        };
-
-        // Right-click aiming handler
-        this.canvas.addEventListener('contextmenu', (e) => {
-            e.preventDefault(); // Stop context menu
-            performShoot(e.clientX, e.clientY);
-        });
-
+        // Flap controls
         window.addEventListener('keydown', (e) => {
-            if (e.code === 'Space') {
-                if(document.activeElement !== this.usernameInput) {
-                    e.preventDefault(); 
-                    action({type: 'keydown'});
-                }
-            }
-            // Shoot with Shift keys using current mouse position
-            if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
-                if(document.activeElement !== this.usernameInput) {
-                    performShoot(this.mousePos.x, this.mousePos.y);
-                }
+            if (e.code === 'Space' && this.isRunning) {
+                this.bird.flap();
             }
         });
         
-        this.canvas.addEventListener('mousedown', action);
-        this.canvas.addEventListener('touchstart', action, { passive: false });
+        this.canvas.addEventListener('touchstart', (e) => {
+            if (this.isRunning) {
+                e.preventDefault();
+                this.bird.flap();
+            }
+        }, {passive: false});
 
-        document.getElementById('start-btn').addEventListener('click', () => this.start());
-        document.getElementById('restart-btn').addEventListener('click', () => this.start());
-        document.getElementById('menu-btn').addEventListener('click', () => {
-             this.gameOverScreen.classList.add('hidden');
-             this.startScreen.classList.remove('hidden');
+        this.canvas.addEventListener('mousedown', (e) => {
+             if (this.isRunning && e.button === 0) { // Left click only
+                this.bird.flap();
+            }
+        });
+
+        // Track Mouse for aiming
+        this.canvas.addEventListener('mousemove', (e) => {
+            const rect = this.canvas.getBoundingClientRect();
+            this.mousePos.x = e.clientX - rect.left;
+            this.mousePos.y = e.clientY - rect.top;
+        });
+
+        // Shoot controls (Right Click)
+        this.canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault(); // Block context menu
+            if(this.isRunning && (this.currentDifficulty === 'normal' || this.currentDifficulty === 'hard')) {
+                this.shoot();
+            }
         });
     }
 
-    spawnPipe() {
-        const settings = DIFFICULTIES[this.currentDifficulty];
-        const pipeWidth = 60;
-        const gap = settings.gap;
-        const minPipeHeight = 50;
-        const maxPipeHeight = this.canvas.height - gap - minPipeHeight - 100;
+    shoot() {
+        // Add recoil or cooldown if desired
+        const projectile = new Projectile(
+            this.bird.x + this.bird.width, 
+            this.bird.y + this.bird.height/2, 
+            this.mousePos.x, 
+            this.mousePos.y,
+            this.currentTheme
+        );
+        this.projectiles.push(projectile);
+    }
 
-        const topHeight = Math.floor(Math.random() * (maxPipeHeight - minPipeHeight + 1) + minPipeHeight);
-        
-        this.pipes.push(new Pipe(this.canvas.width, 0, pipeWidth, topHeight, 'top', this.currentTheme));
-        const bottomY = topHeight + gap;
-        this.pipes.push(new Pipe(this.canvas.width, bottomY, pipeWidth, this.canvas.height - bottomY - 50, 'bottom', this.currentTheme));
+    playThemeMusic() {
+        // Stop any currently playing music
+        this.stopMusic();
 
-        if (Math.random() < 0.3) { 
-            const type = Math.random() > 0.7 ? 'star' : 'life'; 
-            const pY = topHeight + (gap/2) - 15;
-            this.powerups.push(new PowerUp(this.canvas.width + 30, pY, type, this.currentTheme));
+        const fileName = MUSIC_FILES[this.currentTheme];
+        if (fileName) {
+            this.currentMusic = new Audio(fileName);
+            this.currentMusic.loop = true;
+            this.currentMusic.volume = 0.4; // Sätt volym (0.0 till 1.0)
+            
+            this.currentMusic.play().catch(e => {
+                console.log("Audio play blocked (user interaction needed first):", e);
+            });
         }
     }
 
-    updateLivesDisplay() {
-        const icon = THEMES[this.currentTheme].lifeIcon;
-        let text = '';
-        for(let i=0; i<this.lives; i++) text += icon;
-        this.livesEl.innerText = text;
-    }
-
-    saveScore() {
-        const scoreEntry = {
-            name: this.username || "ANONYMOUS",
-            score: this.score,
-            date: new Date().toISOString()
-        };
-
-        let leaderboard = JSON.parse(localStorage.getItem('flappy_leaderboard') || '[]');
-        leaderboard.push(scoreEntry);
-        leaderboard.sort((a, b) => b.score - a.score);
-        leaderboard = leaderboard.slice(0, 5);
-        localStorage.setItem('flappy_leaderboard', JSON.stringify(leaderboard));
-        this.renderLeaderboard(leaderboard);
-    }
-
-    renderLeaderboard(leaderboard) {
-        const table = document.getElementById('leaderboard-table');
-        table.innerHTML = ''; 
-        leaderboard.forEach((entry, index) => {
-            const row = document.createElement('tr');
-            row.innerHTML = `<td>${index + 1}.</td><td>${entry.name}</td><td>${entry.score}</td>`;
-            table.appendChild(row);
-        });
+    stopMusic() {
+        if (this.currentMusic) {
+            this.currentMusic.pause();
+            this.currentMusic.currentTime = 0;
+            this.currentMusic = null;
+        }
     }
 
     start() {
-        const inputName = this.usernameInput.value.trim();
-        if(inputName.length > 0) this.username = inputName;
-
-        const settings = DIFFICULTIES[this.currentDifficulty];
-        this.speed = settings.speed;
-        
         this.bird = new Character(this.canvas.height, this.currentCharacter);
         this.pipes = [];
         this.particles = [];
@@ -1070,186 +1059,217 @@ class Game {
         this.enemies = [];
         this.projectiles = [];
         this.score = 0;
+        this.scoreEl.innerText = this.score;
         this.lives = 1;
-        this.hurtTimer = 0;
-
+        this.updateLivesDisplay();
         this.isRunning = true;
         this.isGameOver = false;
-        this.pipeTimer = 0;
-        this.pipeInterval = settings.pipeInterval;
-
-        this.scoreEl.innerText = this.score;
-        this.scoreEl.classList.remove('hidden');
-        this.livesEl.classList.remove('hidden');
-        this.updateLivesDisplay();
-        
         this.startScreen.classList.add('hidden');
-        this.gameOverScreen.classList.add('hidden');
-
         this.lastTime = performance.now();
-        requestAnimationFrame((ts) => this.loop(ts));
+        this.pipeTimer = 0;
+        
+        // Settings from difficulty
+        const diff = DIFFICULTIES[this.currentDifficulty];
+        this.speed = diff.speed;
+        
+        // Play music
+        this.playThemeMusic();
+
+        requestAnimationFrame((t) => this.loop(t));
     }
 
-    takeDamage() {
-        if (this.bird.invincible || this.hurtTimer > 0) return;
-
-        this.lives--;
-        this.updateLivesDisplay();
-
-        if (this.lives > 0) {
-            this.hurtTimer = 100; 
-        } else {
-            this.stop();
-        }
-    }
-
-    stop() {
-        this.isRunning = false;
-        this.isGameOver = true;
-        this.saveScore(); 
-
-        this.finalScoreEl.innerText = this.score;
-        this.scoreEl.classList.add('hidden');
-        this.livesEl.classList.add('hidden');
-        this.gameOverScreen.classList.remove('hidden');
-        this.draw();
-    }
-
-    createExplosion(x, y, color) {
-        for(let i=0; i<20; i++) {
-            this.particles.push(new Particle(x, y, color));
-        }
+    updateLivesDisplay() {
+        let hearts = "";
+        const icon = THEMES[this.currentTheme].lifeIcon;
+        for(let i=0; i<this.lives; i++) hearts += icon;
+        this.livesEl.innerText = hearts;
     }
 
     loop(timestamp) {
-        if (!this.isRunning) {
-            if(this.particles.length > 0) {
-                this.updateParticles();
-                this.draw();
-                requestAnimationFrame((ts) => this.loop(ts));
-            }
-            return;
-        }
+        if (!this.isRunning) return;
 
-        const deltaTime = timestamp - this.lastTime;
+        const dt = timestamp - this.lastTime;
         this.lastTime = timestamp;
 
-        this.update(deltaTime);
+        this.update(dt);
         this.draw();
 
-        requestAnimationFrame((ts) => this.loop(ts));
+        if (!this.isGameOver) {
+            requestAnimationFrame((t) => this.loop(t));
+        }
     }
 
-    update(deltaTime) {
+    update(dt) {
+        // Update Background (Parallax)
         this.background.update(this.speed);
 
-        const status = this.bird.update();
-        if (status === 'ground') {
-            this.lives = 0; 
-            this.stop();
+        // Update Bird
+        const collision = this.bird.update();
+        if (collision === 'ground') {
+            this.endGame();
         }
 
-        if (this.hurtTimer > 0) this.hurtTimer--;
+        // Update Projectiles
+        this.projectiles.forEach(p => p.update());
+        this.projectiles = this.projectiles.filter(p => !p.markedForDeletion);
 
-        this.pipeTimer += deltaTime;
-        if (this.pipeTimer > this.pipeInterval) {
-            this.spawnPipe();
-            this.pipeTimer = 0;
+        // Enemies Spawning
+        const diff = DIFFICULTIES[this.currentDifficulty];
+        if (Math.random() < diff.enemyChance) {
+             // Spawn enemy at right edge at random height
+             const y = Math.random() * (this.canvas.height - 200) + 50;
+             this.enemies.push(new Enemy(this.canvas.width, y, this.currentTheme));
         }
 
-        // --- ENEMY SPAWNING (Normal and Hard Mode) ---
-        const difficulty = DIFFICULTIES[this.currentDifficulty];
-        if (difficulty.enemyChance > 0 && Math.random() < difficulty.enemyChance) {
-            // Spawn Enemy at right edge at random height
-            const yPos = Math.random() * (this.canvas.height - 200) + 50;
-            this.enemies.push(new Enemy(this.canvas.width, yPos, this.currentTheme));
-        }
-
+        // Update Enemies
         this.enemies.forEach(enemy => {
             enemy.update();
-            if (this.bird.collidesWith(enemy)) {
+            // Collision Bird vs Enemy
+            if (!this.bird.invincible && this.bird.collidesWith(enemy)) {
                 this.takeDamage();
-                enemy.markedForDeletion = true; // Destroy enemy on impact
+                enemy.markedForDeletion = true; 
             }
-        });
-
-        this.projectiles.forEach(proj => {
-            proj.update();
-            // Check collision with enemies
-            this.enemies.forEach(enemy => {
-                if (proj.collidesWith(enemy)) {
+            // Collision Projectile vs Enemy
+            this.projectiles.forEach(proj => {
+                if(proj.collidesWith(enemy)) {
                     enemy.markedForDeletion = true;
                     proj.markedForDeletion = true;
-                    this.createExplosion(enemy.x, enemy.y, '#fff'); // Explosion
+                    this.createExplosion(enemy.x, enemy.y, '#555');
+                    this.score += 5; // Bonus points for killing
+                    this.scoreEl.innerText = this.score;
                 }
             });
         });
+        this.enemies = this.enemies.filter(e => !e.markedForDeletion);
 
+        // Spawn Pipes
+        this.pipeTimer += dt;
+        if (this.pipeTimer > diff.pipeInterval) {
+            this.spawnPipe(diff.gap);
+            this.pipeTimer = 0;
+        }
+
+        // Update Pipes
         this.pipes.forEach(pipe => {
             pipe.update(this.speed);
-            if (this.bird.collidesWith(pipe)) {
+
+            if (!this.bird.invincible && this.bird.collidesWith(pipe)) {
                 this.takeDamage();
+                pipe.markedForDeletion = true; // Remove pipe so we don't get stuck inside
             }
-            if (pipe.type === 'top' && !pipe.passed && pipe.x + pipe.width < this.bird.x) {
+
+            if (!pipe.passed && pipe.x + pipe.width < this.bird.x) {
                 this.score++;
                 this.scoreEl.innerText = this.score;
                 pipe.passed = true;
-                if(this.score % 5 === 0 && this.speed < 8) this.speed += 0.2;
-            }
-        });
-
-        this.powerups.forEach(p => {
-            p.update(this.speed);
-            if(this.bird.collidesWith(p)) {
-                p.markedForDeletion = true;
-                if(p.type === 'life') {
-                    if (this.lives < 2) this.lives++; 
-                    this.updateLivesDisplay();
-                } else if (p.type === 'star') {
-                    this.bird.activateStar();
+                
+                // Spawn Powerup logic?
+                if(this.score % 10 === 0 && pipe.type === 'top') { // Every 10 points
+                     this.powerups.push(new PowerUp(pipe.x, pipe.y + pipe.height + 50, 'star', this.currentTheme));
+                }
+                if(this.score % 15 === 0 && pipe.type === 'top') { // Every 15 points rare life
+                     this.powerups.push(new PowerUp(pipe.x, pipe.y + pipe.height + 50, 'life', this.currentTheme));
                 }
             }
         });
-
         this.pipes = this.pipes.filter(p => !p.markedForDeletion);
-        this.powerups = this.powerups.filter(p => !p.markedForDeletion);
-        this.enemies = this.enemies.filter(e => !e.markedForDeletion);
-        this.projectiles = this.projectiles.filter(p => !p.markedForDeletion);
-    }
 
-    updateParticles() {
+        // Update Powerups
+        this.powerups.forEach(p => {
+            p.update(this.speed);
+            if(this.bird.collidesWith(p)) {
+                if(p.type === 'star') this.bird.activateStar();
+                if(p.type === 'life') { this.lives++; this.updateLivesDisplay(); }
+                p.markedForDeletion = true;
+                this.createExplosion(p.x, p.y, p.type === 'life' ? 'red' : 'gold');
+            }
+        });
+        this.powerups = this.powerups.filter(p => !p.markedForDeletion);
+
+        // Particles
         this.particles.forEach(p => p.update());
         this.particles = this.particles.filter(p => !p.markedForDeletion);
     }
 
+    takeDamage() {
+        if(this.bird.invincible) return;
+
+        this.lives--;
+        this.updateLivesDisplay();
+        this.createExplosion(this.bird.x, this.bird.y);
+        
+        // Push bird back/up slightly
+        this.bird.velocity = -5;
+        this.bird.activateStar(); // Give short i-frames (reuse star logic but manually set time maybe? kept simple here)
+        this.bird.invincibleTimer = 60; // 1 second if 60fps
+
+        if(this.lives <= 0) {
+            this.endGame();
+        }
+    }
+
+    createExplosion(x, y, color) {
+        for(let i=0; i<15; i++) {
+            this.particles.push(new Particle(x, y, color));
+        }
+    }
+
+    spawnPipe(gap) {
+        const minHeight = 50;
+        const groundHeight = 50;
+        const availableHeight = this.canvas.height - groundHeight - gap - (minHeight * 2);
+        const topHeight = Math.floor(Math.random() * availableHeight) + minHeight;
+
+        this.pipes.push(new Pipe(this.canvas.width, 0, 60, topHeight, 'top', this.currentTheme));
+        this.pipes.push(new Pipe(this.canvas.width, topHeight + gap, 60, this.canvas.height - groundHeight - topHeight - gap, 'bottom', this.currentTheme));
+    }
+
     draw() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
+        
         this.background.draw(this.ctx, this.currentTheme);
+        
         this.pipes.forEach(pipe => pipe.draw(this.ctx));
         this.powerups.forEach(p => p.draw(this.ctx));
         this.enemies.forEach(e => e.draw(this.ctx));
         this.projectiles.forEach(p => p.draw(this.ctx));
-        
-        if (this.bird) {
-            if (this.hurtTimer > 0 && Math.floor(Date.now() / 50) % 2 === 0) {
-            } else {
-                this.bird.draw(this.ctx);
-            }
-        }
-
+        this.bird.draw(this.ctx);
         this.particles.forEach(p => p.draw(this.ctx));
+    }
+
+    endGame() {
+        this.isRunning = false;
+        this.isGameOver = true;
+        this.stopMusic(); // Stop music on game over
+        this.finalScoreEl.innerText = this.score;
+        this.saveScore();
+        this.updateLeaderboard();
+        this.gameOverScreen.classList.remove('hidden');
+    }
+
+    saveScore() {
+        let scores = JSON.parse(localStorage.getItem('flappyScores')) || [];
+        scores.push({ name: this.username, score: this.score, theme: this.currentTheme });
+        scores.sort((a, b) => b.score - a.score);
+        scores = scores.slice(0, 5); // Keep top 5
+        localStorage.setItem('flappyScores', JSON.stringify(scores));
+    }
+
+    updateLeaderboard() {
+        const table = document.getElementById('leaderboard-table');
+        table.innerHTML = '';
+        const scores = JSON.parse(localStorage.getItem('flappyScores')) || [];
         
-        if(this.bird && this.bird.invincible) {
-            this.ctx.fillStyle = 'gold';
-            this.ctx.fillRect(0, 0, (this.bird.invincibleTimer/300) * this.canvas.width, 5);
-        }
+        scores.forEach(s => {
+            const row = document.createElement('tr');
+            row.innerHTML = `<td>${s.name}</td><td>${s.score}</td>`;
+            table.appendChild(row);
+        });
     }
 }
 
-window.onload = () => {
-    const game = new Game('gameCanvas');
-};
+// Start Game Loop
+const game = new Game('gameCanvas');
 
 </script>
 </body>
