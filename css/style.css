@@ -1,0 +1,309 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: #222;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+    font-family: 'Press Start 2P', cursive;
+    touch-action: none;
+}
+
+#game-container {
+    position: relative;
+    width: 100%;
+    max-width: 480px;
+    height: 100%;
+    max-height: 800px;
+    background-color: #70c5ce;
+    overflow: hidden;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+    border: 2px solid #444;
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+#ui-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* HUD */
+#score-display {
+    position: absolute;
+    top: 10%;
+    font-size: 3rem;
+    color: white;
+    text-shadow: 3px 3px 0 #000;
+    z-index: 10;
+}
+
+#lives-display {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    font-size: 1.5rem;
+    color: #ff4444;
+    text-shadow: 2px 2px 0 #000;
+    z-index: 10;
+    text-align: left;
+}
+
+#knife-display {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    font-size: 1.2rem;
+    color: #fff;
+    text-shadow: 2px 2px 0 #000;
+    z-index: 10;
+    text-align: right;
+}
+
+/* --- UI STYLES (Glows Removed) --- */
+#start-screen,
+#game-over-screen {
+    background: rgba(20, 20, 20, 0.5);
+    backdrop-filter: blur(8px);
+    padding: 2rem;
+    border-radius: 16px;
+    pointer-events: auto;
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    width: 90%;
+    max-width: 400px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+h1 {
+    font-size: 1.1rem;
+    margin-bottom: 1.5rem;
+    color: #f4ce42;
+    text-shadow: 3px 3px 0 #000;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+
+p {
+    font-size: 0.6rem;
+    margin-bottom: 0.5rem;
+    line-height: 1.6;
+    color: #ccc;
+}
+
+input[type="text"] {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid #555;
+    color: #fff;
+    padding: 15px;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.8rem;
+    width: 100%;
+    text-align: center;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.3s;
+}
+
+input[type="text"]:focus {
+    border-color: #f4ce42;
+}
+
+/* Buttons */
+.btn {
+    background: linear-gradient(135deg, #e06018, #d35400);
+    border: none;
+    color: white;
+    padding: 15px;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.8rem;
+    cursor: pointer;
+    text-transform: uppercase;
+    box-shadow: 0 4px 0 #a04000;
+    border-radius: 8px;
+    transition: all 0.1s;
+    margin-top: 15px;
+    width: 100%;
+}
+
+.btn:active {
+    transform: translateY(4px);
+    box-shadow: 0 0 0 #a04000;
+}
+
+.btn-secondary {
+    background: linear-gradient(135deg, #555, #333);
+    box-shadow: 0 4px 0 #222;
+}
+
+.btn-secondary:active {
+    box-shadow: 0 0 0 #222;
+}
+
+/* Option Grid */
+.selector-label {
+    margin-top: 15px;
+    color: #aaa;
+    text-transform: uppercase;
+    font-size: 0.6rem;
+    text-align: left;
+    letter-spacing: 1px;
+}
+
+.option-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 5px;
+}
+
+.opt-btn {
+    padding: 10px 2px;
+    font-size: 0.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    color: #aaa;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.opt-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.opt-btn.selected {
+    background: #73bf2e;
+    color: #fff;
+    border: 2px solid #fff;
+    transform: scale(1.05);
+}
+
+/* Specific colors for selected state */
+.opt-btn[data-char="naruto"].selected {
+    background: #F39C12;
+}
+
+.opt-btn[data-theme="leaf"].selected {
+    background: #58D68D;
+    color: #000;
+}
+
+.opt-btn[data-char="cartman"].selected {
+    background: #E74C3C;
+}
+
+.opt-btn[data-char="killua"].selected {
+    background: #95A5A6;
+}
+
+.opt-btn[data-char="stalin"].selected {
+    background: #6E2C00;
+}
+
+.opt-btn[data-char="mussolini"].selected {
+    background: #212F3C;
+}
+
+.opt-btn[data-char="kimj"].selected {
+    background: #333;
+}
+
+.opt-btn[data-char="kimk"].selected {
+    background: #FF69B4;
+}
+
+.opt-btn[data-theme="soviet"].selected {
+    background: #C0392B;
+}
+
+.opt-btn[data-theme="southpark"].selected {
+    background: #AED6F1;
+    color: #000;
+}
+
+.leaderboard-container {
+    margin-top: 20px;
+    width: 100%;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 15px;
+}
+
+table {
+    width: 100%;
+    font-size: 0.65rem;
+    color: #ccc;
+    border-collapse: collapse;
+}
+
+th,
+td {
+    padding: 8px 0;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+td:last-child {
+    text-align: right;
+    color: #f4ce42;
+}
+
+/* --- FIRE BUTTON (LEFT SIDE) --- */
+#fire-btn {
+    position: absolute;
+    bottom: 30px;
+    left: 30px;
+    width: 80px;
+    height: 80px;
+    background: rgba(231, 76, 60, 0.8);
+    border: 4px solid rgba(255, 255, 255, 0.8);
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 2rem;
+    color: white;
+    z-index: 20;
+    user-select: none;
+    cursor: pointer;
+    box-shadow: 0 0 15px rgba(231, 76, 60, 0.6);
+    backdrop-filter: blur(4px);
+}
+
+#fire-btn:active {
+    transform: scale(0.95);
+    background: rgba(231, 76, 60, 1);
+}
+
+@media (min-width: 1024px) {
+    #fire-btn {
+        display: none;
+    }
+}
